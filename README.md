@@ -56,7 +56,6 @@ Assignment 1/
 |   |-- Main.java
 |   |-- Parser.java
 |   `-- Terminal.java
-|-- Instructions.pdf
 `-- README.md
 ```
 

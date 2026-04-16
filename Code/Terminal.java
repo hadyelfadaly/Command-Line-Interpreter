@@ -1,7 +1,7 @@
+package Code;
+
 import java.io.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.util.Collections;
@@ -10,135 +10,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
 
-class Parser
-{
-
-    private String commandName;
-    private String[] args;
-
-    public boolean parse(String input)
-    {
-
-        //remove any trailing spaces
-        input = input.trim();
-
-        if(input.isEmpty()) return false;
-
-        String[] parts = input.split(" ");
-
-        //the command is always written first that's why we take parts first index
-        commandName = parts[0];
-
-        //check if there is arguments inserted
-        if(parts.length > 1)
-        {
-
-            args = new String[parts.length - 1];
-            int argIndex = 0;
-
-            for(int i = 1; i < parts.length; i++)
-            {
-
-                if(parts[i].charAt(0) == '\'')
-                {
-
-                    //if argument name is between quotes
-                    if(parts[i].charAt(parts[i].length()-1) == '\'')
-                    {
-
-                        parts[i] = parts[i].substring(1,  parts[i].length()-1); //argument without the quotes
-                        args[argIndex] = parts[i];
-
-                    }
-                    else
-                    {
-
-                        int j = i;
-                        ArrayList<String> quotedArguments = new ArrayList<>(); //arraylist to hold the argument between quotes
-
-                        //add first word without its starting '
-                        quotedArguments.add(parts[j].substring(1));
-                        j++;
-
-                        //add in between words
-                        while(parts[j].charAt(parts[j].length()-1) != '\'')
-                        {
-
-                            quotedArguments.add(parts[j]);
-                            j++;
-
-                        }
-
-                        //add last word without last '
-                        quotedArguments.add(parts[j].substring(0, parts[j].length()-1));
-
-                        args[argIndex] = String.join(" ", quotedArguments);
-
-                        i = j;
-
-                    }
-
-                }
-                else if(parts[i].charAt(0) == '"')
-                {
-
-                    //if argument name is between quotes
-                    if(parts[i].charAt(parts[i].length()-1) == '"')
-                    {
-
-                        parts[i] = parts[i].substring(1,  parts[i].length()-1); //argument without the quotes
-                        args[argIndex] = parts[i];
-
-                    }
-                    else
-                    {
-
-                        int j = i;
-                        ArrayList<String> quotedArguments = new ArrayList<>(); //arraylist to hold the argument between quotes
-
-                        //add first word without its starting '
-                        quotedArguments.add(parts[j].substring(1));
-                        j++;
-
-                        //add in between words
-                        while(parts[j].charAt(parts[j].length()-1) != '"')
-                        {
-
-                            quotedArguments.add(parts[j]);
-                            j++;
-
-                        }
-
-                        //add last word without last '
-                        quotedArguments.add(parts[j].substring(0, parts[j].length()-1));
-
-                        args[argIndex] = String.join(" ", quotedArguments);
-
-                        i = j;
-
-                    }
-
-                }
-                else args[argIndex] = parts[i];
-
-                argIndex++;
-
-            }
-
-            //if arguments after joining is smaller than arg og size then resize it
-            if (argIndex < args.length) args = Arrays.copyOf(args, argIndex);
-
-        }
-        else args = new String[0]; //if no arguments make empty arguments array
-
-        return true;
-
-    }
-    public String getCommandName() {return commandName;}
-    public String[] getArgs() {return args;}
-
-}
-class Terminal
+public class Terminal
 {
 
 
@@ -152,6 +24,20 @@ class Terminal
         currentDirectory = System.getProperty("user.dir"); //saves current path
         //into the variable when an instance of terminal is created
 
+    }
+
+    public Parser getParser()
+    {return parser;}
+    //helper method to resolve absolute vs relative paths
+    private File resolvePath(String pathString)
+    {
+
+        File file = new File(pathString);
+
+        if(!file.isAbsolute()) file = new File(currentDirectory, pathString);
+        
+        return file;
+        
     }
 
     public String pwd(String[] args)
@@ -191,10 +77,8 @@ class Terminal
         else
         {
 
-            File newPath = new File(path); //create file object from the path
+            File newPath = resolvePath(path); //create file object from the path
 
-            //if its short path (relative), combine it with the current path
-            if(!newPath.isAbsolute()) newPath = new File(currentDirectory, args[0]);
             if(newPath.exists() && newPath.isDirectory()) //make sure this path exists and that its a directory
             {
 
@@ -225,9 +109,8 @@ class Terminal
         {
 
             //create object file from the arg
-            File file = new File(args[i]);
+            File file = resolvePath(args[i]);
 
-           if(!file.isAbsolute()) file = new File(currentDirectory, args[i]); //get full path if not given
            if(file.exists() && file.isDirectory()) //if file exists
             {
 
@@ -281,22 +164,50 @@ class Terminal
     public void cp(String[] args)
     {
 
-        if(args.length != 2)
+        if(args.length < 2)
         {
 
-            System.out.println("cp: must be 2 arguments"); //validate the arguments must be cp <source> <destination>
+            System.out.println("cp: missing operand"); //validate the arguments must be cp <source> <destination>
 
             return;
 
         }
 
         //make file objects of given arguments
-        File source = new File(args[0]);
-        File destination = new File(args[1]);
+        File source = resolvePath(args[0]);
+        File destination = resolvePath(args[1]);
+        boolean recursive = false;
 
-        //construct paths if not given fully
-        if(!source.isAbsolute()) source = new File(currentDirectory, args[0]);
-        if(!destination.isAbsolute()) destination = new File(currentDirectory, args[1]);
+        if(args[0].equals("-r"))
+        {
+
+            if(args.length < 3) 
+            {
+
+                System.out.println("cp: -r requires a source and destination directory");
+
+                return;
+
+            }
+
+            recursive = true;
+            source = resolvePath(args[1]);
+            destination = resolvePath(args[2]);
+
+        }
+        else
+        {
+
+            if(args.length > 2)
+            {
+
+                System.out.println("cp: too many arguments for standard copy");
+
+                return;
+
+            }
+
+        }
 
         if(!source.exists() || !source.isFile()) //make sure source file exists
         {
@@ -310,8 +221,28 @@ class Terminal
         try
         {
 
-            //using toPath() function to convert file object to path object
-            Files.copy(source.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING); //copy the file
+            if(recursive)
+            {
+
+                if(!source.isDirectory())
+                {
+
+                    System.out.println("cp: source is not a directory");
+
+                    return;
+
+                }
+
+                copyDirectoryRecursive(source, destination);
+
+            }
+            else
+            {
+
+                //using toPath() function to convert file object to path object
+                Files.copy(source.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING); //copy the file
+
+            }
 
         }
         catch(IOException error) //catches input or output or file operations errors
@@ -322,56 +253,12 @@ class Terminal
         }
 
     }
-    public void cp_r(String[] args)
-    {
-
-        if(args.length != 3 || !args[0].equals("-r")) //validate arguments and format
-        {
-
-            System.out.println("cp -r: must be cp -r <sourceDir> <destinationDir>");
-
-            return;
-
-        }
-
-        //make file objects of given arguments
-        File sourceDir = new File(args[1]);
-        File destDir = new File(args[2]);
-
-        //construct paths if not given fully
-        if(!sourceDir.isAbsolute()) sourceDir = new File(currentDirectory, args[1]);
-        if(!destDir.isAbsolute()) destDir = new File(currentDirectory, args[2]);
-
-        if(!sourceDir.exists() || !sourceDir.isDirectory()) //check if the source exists and it is a directory
-        {
-
-            System.out.println("cp -r: source is not a valid ");
-
-            return;
-
-        }
-
-        try
-        {
-
-            //helper function to copy directories
-            copyDirectoryRecursive(sourceDir, new File(destDir, sourceDir.getName()));
-
-        }
-        catch(IOException error) //catches input or output or file operations errors
-        {
-
-            System.out.println("cp -r: error copying directory");
-
-        }
-
-    }
     //helper function for recursive copy
     private void copyDirectoryRecursive(File source, File dest) throws IOException
     {
 
         //create dest dir if it does not exist
-        if(!dest.exists()) dest.mkdir();
+        if(!dest.exists()) dest.mkdirs();
 
         //array of all contents in the source
         File[] files = source.listFiles();
@@ -409,10 +296,7 @@ class Terminal
 
          //join all args to handle file name with spaces
          String path = String.join(" ", args);
-         File file = new File(path);
-
-         //if user didn't write full path
-         if(!file.isAbsolute()) file = new File(currentDirectory, path);
+         File file = resolvePath(path);
 
          try
          {
@@ -497,10 +381,8 @@ class Terminal
 
         //case 2: deleting one specific directory
         String path = String.join(" ", args); //handle names with spaces
-        File dir = new File(path);
+        File dir = resolvePath(path);
 
-        //if user didn't write full path, attach current directory to get full path
-        if(!dir.isAbsolute()) dir = new File(currentDirectory, path);
         if(!dir.exists())
         {
 
@@ -549,10 +431,8 @@ class Terminal
 
         //to handle files with space in their name
         String filename = String.join(" ", args);
-        File file = new File(filename);
+        File file = resolvePath(filename);
 
-        //if not absolute get full path
-        if(!file.isAbsolute()) file = new File(currentDirectory, filename);
         if(!file.exists())
         {
 
@@ -582,10 +462,8 @@ class Terminal
 
             //create object file from the argument
             String filename = args[0];
-            File file = new File(filename);
-
-            //if not full path create its fullpath
-            if(!file.isAbsolute()) file = new File(currentDirectory, filename);
+            File file = resolvePath(filename);
+            
             if(!file.exists()) return "No such file.";
             if(!file.isFile()) return filename + " is a directory";
 
@@ -633,11 +511,9 @@ class Terminal
         {
 
             String fileName1 = args[0], fileName2 = args[1];
-            File file1 = new File(fileName1), file2 = new File(fileName2);
+            File file1 = resolvePath(fileName1);
+            File file2 = resolvePath(fileName2);
 
-            //get full paths of the files
-            if(!file1.isAbsolute()) file1 = new File(currentDirectory, fileName1);
-            if(!file2.isAbsolute()) file2 = new File(currentDirectory, fileName2);
             if(!file1.exists()) return fileName1 + ": no such file";
             if(!file2.exists()) return fileName2 + ": no such file";
             if(!file1.isFile()) return fileName1 + ": is not a valid file";
@@ -697,10 +573,8 @@ class Terminal
 
         //to handle file with spaces in their names
         String filename = String.join(" ", args);
-        File file = new File(filename);
+        File file = resolvePath(filename);
 
-        //get full path if not given
-        if(!file.isAbsolute()) file = new File(currentDirectory, filename);
         if(!file.exists()) return filename + " no such a file. ";
         if(!file.isFile()) return filename + " is an invalid file. ";
 
@@ -776,20 +650,17 @@ class Terminal
 
         //creating object files for the zip file
         String zipFileName = args[0];
-        File zipFile = new File(zipFileName);
-
-        //get its full path if not given
-        if(!zipFile.isAbsolute()) zipFile = new File(currentDirectory, zipFileName);
 
         boolean recursive = false;
         int startIndex = 1;
 
         //check if its directory recursive
-        if(args[1].equals("-r"))
+        if(args[0].equals("-r"))
         {
 
             recursive = true;
             startIndex = 2;
+            zipFileName = args[1];
 
             if(args.length < 3)
             {
@@ -801,6 +672,8 @@ class Terminal
             }
 
         }
+
+        File zipFile = resolvePath(zipFileName);
 
         try
         {
@@ -814,18 +687,16 @@ class Terminal
             {
 
                 //getting dir path
-                String directoryPath = args[2];
-                File directory = new File(directoryPath);
+                String directoryPath = args[startIndex];
+                File directory = resolvePath(directoryPath);
 
-                //get full path if not written
-                if(!directory.isAbsolute()) directory = new File(currentDirectory, directoryPath);
                 if(!directory.exists())
                 {
 
                     System.out.println("zip: directory does not exist: " + directoryPath);
-
                     zos.close();
                     fos.close();
+                    zipFile.delete(); //delete the created zip file if error happens
 
                     return;
 
@@ -834,9 +705,9 @@ class Terminal
                 {
 
                     System.out.println("zip: path is not a directory: " + directoryPath);
-
                     zos.close();
                     fos.close();
+                    zipFile.delete(); //delete the created zip file if error happens
 
                     return;
 
@@ -854,10 +725,9 @@ class Terminal
                 {
 
                     //create file object of the file we gonna zip
-                    File fileToZip = new File(args[i]);
+                    File fileToZip = resolvePath(args[i]);
 
                     //get its full path
-                    if(!fileToZip.isAbsolute()) fileToZip = new File(currentDirectory, args[i]);
                     if(!fileToZip.exists())
                     {
 
@@ -1005,10 +875,8 @@ class Terminal
         else zipFileName = String.join(" ", args);
 
         //creating file object of the zip file name
-        File zipFile = new File(zipFileName);
+        File zipFile = resolvePath(zipFileName);
 
-        //getting its full path
-        if(!zipFile.isAbsolute()) zipFile = new File(currentDirectory, zipFileName);
         if(!zipFile.exists())
         {
 
@@ -1136,14 +1004,14 @@ class Terminal
         try
         {
 
-            FileWriter fw = null;
             String res = "";
+            String targetFileName = "";
 
             //pwd or ls
             if(args.length == 2)
             {
 
-                fw = new FileWriter(args[1], false); //false for override
+                targetFileName = args[1];
                 args = new String[]{}; //no args
 
                 //check which command is it
@@ -1154,7 +1022,7 @@ class Terminal
             else if(args.length == 3)
             {
 
-                fw = new FileWriter(args[2], false);
+                targetFileName = args[2];
                 args = new String[]{args[0]}; //only first file we need in case of cat and wc
 
                 if(commandName.equals("cat")) res = cat(args);
@@ -1164,12 +1032,14 @@ class Terminal
             else if(args.length == 4) //only 2nd cat case
             {
 
-                fw = new FileWriter(args[3], false);
+                targetFileName = args[3];
                 args = new String[]{args[0], args[1]}; //only first 2 files we need in case of cat
-
                 res = cat(args);
 
             }
+
+            File targetFile = resolvePath(targetFileName);
+            FileWriter fw = new FileWriter(targetFile, false); //false for override
 
             fw.write(res); //writes output into file, creates it if not existing
             fw.close();
@@ -1189,14 +1059,14 @@ class Terminal
         try
         {
 
-            FileWriter fw = null;
             String res = "";
+            String targetFileName = "";
 
             //pwd or ls
             if(args.length == 2)
             {
 
-                fw = new FileWriter(args[1], true); //true for append
+                targetFileName = args[1];
                 args = new String[]{}; //no args
 
                 //check which command is it
@@ -1207,7 +1077,7 @@ class Terminal
             else if(args.length == 3)
             {
 
-                fw = new FileWriter(args[2], true);
+                targetFileName = args[2];
                 args = new String[]{args[0]}; //only first file we need in case of cat and wc
 
                 if(commandName.equals("cat")) res = cat(args);
@@ -1217,12 +1087,15 @@ class Terminal
             else if(args.length == 4) //only 2nd cat case
             {
 
-                fw = new FileWriter(args[3], true);
+                targetFileName = args[3];
                 args = new String[]{args[0], args[1]}; //only first 2 files we need in case of cat
 
                 res = cat(args);
 
             }
+
+            File targetFile = resolvePath(targetFileName);
+            FileWriter fw = new FileWriter(targetFile, true); //true for append
 
             fw.write(res); //writes output into file, creates it if not existing
             fw.close();
@@ -1338,34 +1211,8 @@ class Terminal
         else if(parser.getCommandName().equals("zip")) zip(arguments);
         else if(parser.getCommandName().equals("unzip")) unzip(arguments);
         else if(parser.getCommandName().equals("exit")) exit(parser.getCommandName());
-        else if(parser.getCommandName().equals("cp"))
-        {
-
-            if(arguments.length > 0 && arguments[0].equals("-r")) cp_r(arguments);
-            else cp(arguments);
-
-        }
+        else if(parser.getCommandName().equals("cp")) cp(arguments);
         else System.out.println(parser.getCommandName() + ": command not found");
-
-    }
-    
-    public static void main(String[] args) throws IOException
-    {
-
-        Terminal terminal = new Terminal();
-        Scanner scanner = new Scanner(System.in);
-
-        while(true)
-        {
-
-            System.out.print("> ");
-
-            String input = scanner.nextLine();
-
-            if(terminal.parser.parse(input)) terminal.chooseCommandAction();
-            else System.out.println("error");
-
-        }
 
     }
 

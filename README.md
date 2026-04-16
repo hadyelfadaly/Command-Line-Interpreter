@@ -2,11 +2,10 @@
 
 [![Java](https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://www.java.com/)
 [![Course](https://img.shields.io/badge/Course-Operating%20Systems-1E3A8A?style=flat-square)](#)
-[![Status](https://img.shields.io/badge/Status-Completed-16A34A?style=flat-square)](#)
 
 ## Motivation and Project Overview
 
-This project implements a lightweight command-line interpreter in Java as part of the Operating Systems course assignment.
+This project implements a lightweight command-line interpreter in Java as part of the Operating Systems course.
 
 The core objective is to simulate how a shell works internally:
 
